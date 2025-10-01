@@ -16,9 +16,9 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Servir frontend estático (React/Vite build)
+// Servir frontend estático (desde dist/public en la raíz)
 const __dirname = path.resolve();
-app.use(express.static(path.join(__dirname, "client/dist/public")));
+app.use(express.static(path.join(__dirname, "dist", "public")));
 
 // Endpoint de Stripe
 app.post("/create-payment-intent", async (req, res) => {
@@ -38,10 +38,10 @@ app.post("/create-payment-intent", async (req, res) => {
 
 // Catch-all para React Router
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "client/dist/public/index.html"));
+  res.sendFile(path.join(__dirname, "dist", "public", "index.html"));
 });
 
 // Iniciar servidor
 app.listen(port, () => {
-  console.log(`Server listening at http://0.0.0.0:${port}`);
+  console.log(`✅ Server listening at http://localhost:${port}`);
 });
