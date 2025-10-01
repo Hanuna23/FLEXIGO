@@ -18,7 +18,7 @@ app.use(express.json());
 
 // Servir frontend estático (React/Vite build)
 const __dirname = path.resolve();
-app.use(express.static(path.join(__dirname, "dist/public")));
+app.use(express.static(path.join(__dirname, "client/dist/public")));
 
 // Endpoint de Stripe
 app.post("/create-payment-intent", async (req, res) => {
@@ -38,7 +38,7 @@ app.post("/create-payment-intent", async (req, res) => {
 
 // Catch-all para React Router
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist/public/index.html"));
+  res.sendFile(path.join(__dirname, "client/dist/public/index.html"));
 });
 
 // Iniciar servidor
