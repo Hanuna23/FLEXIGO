@@ -1,0 +1,184 @@
+// File: server.js
+require('dotenv').config();
+const express = require('express');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const cors = require('cors');
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+
+app.post('/create-payment-intent', async (req, res) => {
+  try {
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: req.body.amount, // Amount in cents
+      currency: 'usd',
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    });
+
+    res.send({
+      clientSecret: paymentIntent.client_secret,
+    });
+  } catch (error) {
+    return res.status(400).send({ error: { message: error.message } });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server listening at http://localhost:${port}`);
+});
+
+
+// File: src/App.jsx
+import React, { useState, useEffect } from 'react';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import CheckoutForm from './CheckoutForm';
+import './App.css'; // Create App.css for styling
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+
+function App() {
+  const [clientSecret, setClientSecret] = useState('');
+
+  useEffect(() => {
+    fetch('/create-payment-intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: 1000 }), // Example amount: $10.00
+    })
+      .then((res) => res.json())
+      .then((data) => setClientSecret(data.clientSecret));
+  }, []);
+
+  const appearance = {
+    theme: 'stripe',
+  };
+  const options = {
+    clientSecret,
+    appearance,
+  };
+
+  return (
+    <div className="App">
+      {clientSecret && (
+        <Elements stripe={stripePromise} options={options}>
+          <CheckoutForm />
+        </Elements>
+      )}
+    </div>
+  );
+}
+
+export default App;
+
+// File: src/CheckoutForm.jsx
+import React, { useState } from 'react';
+import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
+
+function CheckoutForm() {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    const card = elements.getElement(CardElement);
+
+    if (card == null) {
+      return;
+    }
+
+    const { error, paymentMethod } = await stripe.createPaymentMethod({
+      type: 'card',
+      card,
+    });
+
+    if (error) {
+      setErrorMessage(error.message);
+      setSuccessMessage('');
+      return;
+    }
+
+    const { paymentIntent, error: confirmError } = await stripe.confirmCardPayment(
+      elements.getElement(CardElement),
+      {
+        payment_method: paymentMethod.id,
+      }
+    );
+
+    if (confirmError) {
+      setErrorMessage(confirmError.message);
+      setSuccessMessage('');
+      return;
+    }
+
+    if (paymentIntent.status === 'succeeded') {
+      setSuccessMessage('Payment succeeded!');
+      setErrorMessage('');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <CardElement />
+      <button type="submit" disabled={!stripe || !elements}>
+        Pay
+      </button>
+      {errorMessage && <div className="error">{errorMessage}</div>}
+      {successMessage && <div className="success">{successMessage}</div>}
+    </form>
+  );
+}
+
+export default CheckoutForm;
+
+// File: src/App.css (Minimal styling)
+.App {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-family: sans-serif;
+}
+
+form {
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+button {
+  background-color: #5469ed;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.error {
+  color: red;
+  margin-top: 10px;
+}
+
+.success {
+  color: green;
+  margin-top: 10px;
+}
+
+// File: .env (Example - remember to create this file)
+// STRIPE_SECRET_KEY=YOUR_STRIPE_SECRET_KEY
+// VITE_STRIPE_PUBLIC_KEY=YOUR_STRIPE_PUBLIC_KEY
