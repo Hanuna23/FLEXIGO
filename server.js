@@ -3,12 +3,16 @@ import express from "express";
 import Stripe from "stripe";
 import cors from "cors";
 import dotenv from "dotenv";
-import path from "path";
+import path, { dirname } from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+// Configurar __dirname en ESModules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -16,9 +20,8 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Servir frontend estático (desde dist/public en la raíz del proyecto)
-const __dirname = path.resolve();
-app.use(express.static(path.join(__dirname, "dist", "public")));
+// Servir frontend estático desde "dist"
+app.use(express.static(path.join(__dirname, "dist")));
 
 // Endpoint de Stripe
 app.post("/create-payment-intent", async (req, res) => {
@@ -38,7 +41,7 @@ app.post("/create-payment-intent", async (req, res) => {
 
 // Catch-all para React Router
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist", "public", "index.html"));
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
 // Iniciar servidor
